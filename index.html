@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Work the Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen game. HUD strip (clock, per-handle progress, controls) over a full-width
+   illustrated espresso bar; coaching line between them, toasts and result card float on the bar.
+   Single committed look: a café bar after hours, steel and walnut under one warm pendant. */
+:root{
+  color-scheme:dark;
+  --night:#0f1517;      /* page ground */
+  --panel:#182125;      /* HUD surfaces */
+  --line:#2b383d;       /* hairlines */
+  --steam:#eef2ee;      /* primary text */
+  --dim:#93a5a6;        /* secondary text */
+  --crema:#f0a95a;      /* accent: crema amber */
+  --go:#71dc9c;         /* done / ready */
+  --stop:#ff7262;       /* late / missed */
+  --water:#8fd6f0;
+  --pf1:#f0a95a; --pf2:#7fd1c0;
+  --f-display:"Chakra Petch","Barlow Condensed",system-ui,sans-serif;
+  --f-label:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+html,body{height:100%;margin:0}
+body{background:var(--night);color:var(--steam);font-family:var(--f-body);overflow:hidden}
+*{box-sizing:border-box}[hidden]{display:none!important}
+button{font:600 15px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--steam);background:var(--panel);border:1px solid #3a4a50;border-radius:999px;padding:0 16px;min-height:40px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{background:#223035;border-color:#56686e}
+button:focus-visible{outline:3px solid var(--crema);outline-offset:2px}
+button.primary{background:var(--crema);border-color:var(--crema);color:#24170b}
+button.primary:hover{background:#ffbd76}
+button[aria-pressed="false"]{color:var(--dim)}
+
+.app{height:100%;display:flex;flex-direction:column;gap:10px;padding-block:12px;padding-inline:16px;max-width:1500px;margin:0 auto}
+
+/* HUD */
+.hud{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:10px 28px}
+.brand{min-width:0}
+.kicker{font:600 12px/1 var(--f-label);letter-spacing:.2em;text-transform:uppercase;color:var(--crema)}
+.brand h1{margin:5px 0 0;font:700 26px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;text-wrap:balance}
+.clock{display:flex;flex-direction:column;gap:6px;min-width:190px}
+.time{font:700 46px/0.95 var(--f-display);font-variant-numeric:tabular-nums;color:var(--crema);letter-spacing:.02em}
+.time.over{color:var(--stop)}
+.time.stopped{color:var(--go)}
+.track{position:relative;height:6px;border-radius:3px;background:#263236}
+.track span{position:absolute;inset:0 auto 0 0;width:0;border-radius:3px;background:var(--crema)}
+.track.over span{background:var(--stop)}
+.track small{position:absolute;right:0;top:9px;font:600 11px/1 var(--f-label);letter-spacing:.12em;color:var(--dim)}
+.pfstatus{display:grid;gap:7px;min-width:0}
+.pfrow{display:grid;grid-template-columns:42px auto minmax(0,1fr);align-items:center;gap:10px}
+.nextlbl{font:600 14px/1.1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nextlbl b{color:var(--steam);font-weight:600}
+.tag{font:700 13px/1 var(--f-label);letter-spacing:.08em;padding:5px 0;text-align:center;border-radius:6px;color:#1b130a}
+.tag.p1{background:var(--pf1)}.tag.p2{background:var(--pf2)}
+.pips{display:flex;gap:4px;list-style:none;margin:0;padding:0;align-items:center}
+.pips li{font-size:0;color:transparent;overflow:hidden;width:18px;height:10px;border-radius:3px;background:#1d292d;border:1px solid #2c3a3f}
+.pips li.done{color:#0f2418;background:var(--go);border-color:var(--go)}
+.pips li.next{border-color:var(--crema);background:#3a2c1c}
+.pips li.miss{background:var(--stop);border-color:var(--stop)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+.coachbar{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 8px 6px 6px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.chip{flex:none;font:600 13px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;padding:7px 10px;border-radius:8px;background:#0f1618;color:var(--dim);font-variant-numeric:tabular-nums}
+.chip.busy{color:#24170b;background:var(--crema)}
+.chip.grind{color:#0f2418;background:var(--go)}
+.coach{margin:0;font-size:16px;font-weight:500;line-height:1.3;min-width:0;color:var(--steam)}
+.coach b{color:var(--crema);font-weight:600}
+
+/* Stage */
+.stage{position:relative;flex:1;min-height:240px;border-radius:16px;overflow:hidden;background:#0b1012;border:1px solid var(--line)}
+#bar{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none}
+#bar text{pointer-events:none}
+.lbl{font-family:var(--f-label);font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.lcd{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums}
+.chiptext{font-family:var(--f-label);font-weight:700;letter-spacing:.12em;font-size:15px;text-anchor:middle}
+
+.zone rect{fill:transparent;stroke:transparent;stroke-width:3;transition:fill .12s,stroke .12s}
+.zone text{opacity:0;fill:#f0a95a;font-size:17px;text-anchor:middle}
+.zone.show rect{stroke:rgba(240,169,90,.6);stroke-dasharray:10 8;fill:rgba(240,169,90,.07)}
+.zone.show text{opacity:1}
+.zone.hot rect{stroke:#f0a95a;stroke-dasharray:none;fill:rgba(240,169,90,.2)}
+.zone.hint rect{stroke:#71dc9c;stroke-dasharray:8 8;fill:rgba(113,220,156,.07);animation:march 1s linear infinite}
+.zone.hint text{opacity:1;fill:#71dc9c}
+.zone{cursor:pointer;outline:none}
+.zone:focus-visible rect{stroke:#ffffff;stroke-dasharray:none}
+
+.grab{cursor:grab;outline:none}
+.grab.lifted{cursor:grabbing;filter:drop-shadow(0 22px 14px rgba(0,0,0,.55))}
+.grab:focus-visible{filter:drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 2px #ffffff)}
+.hintable.hint{filter:drop-shadow(0 0 9px rgba(113,220,156,.95));animation:bob 1s ease-in-out infinite}
+.pf .sel{display:none}.pf .ring,.pf .sel,.pf .drop{pointer-events:none}
+.pf.selected .sel{display:inline;animation:march 1s linear infinite}
+.pf .ring{display:none}
+.pf.working .ring{display:inline}
+.pf .crack,.pf .drops,.pf .mound,.pf .tampmark,.pf .collar{display:none}
+.pf[data-c="puck"] .crack,.pf[data-c="wet"] .drops,.pf[data-c="grinding"] .mound,.pf[data-c="ground"] .mound,.pf[data-c="tamped"] .tampmark{display:inline}
+.pf.in-group .collar{display:inline}
+.pf.in-group .drop{display:none}
+.blink{animation:blink .6s ease-in-out infinite alternate}
+.flow{animation:pour .35s linear infinite}
+@keyframes march{to{stroke-dashoffset:-16}}
+@keyframes blink{to{opacity:.35}}
+@keyframes pour{to{stroke-dashoffset:-14}}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.hintable{transform-box:fill-box}
+
+/* Toast, cards */
+.toast{position:absolute;left:50%;bottom:14px;transform:translate(-50%,20px);max-width:min(560px,calc(100% - 32px));padding:10px 16px;border-radius:12px;background:#10181b;border:1px solid #3a4a50;font-size:15px;font-weight:500;line-height:1.3;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.warn{border-color:var(--stop);color:#ffd9d3}
+.toast.good{border-color:var(--go);color:#d8ffe6}
+
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgba(8,12,13,.55);backdrop-filter:blur(3px)}
+.card{width:min(440px,100%);max-height:100%;overflow:auto;background:#141d20;border:1px solid #3a4a50;border-radius:18px;padding:24px 26px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.card h2{margin:10px 0 14px;font:700 32px/1.05 var(--f-display);text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.card h2 em{font-style:normal;color:var(--crema)}
+.card ul{margin:0 0 18px;padding:0;list-style:none;display:grid;gap:10px}
+.card li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:15px;line-height:1.4;color:#cdd8d6}
+.card li::before{content:attr(data-n);font:700 13px/22px var(--f-display);color:var(--crema)}
+.card .primary{width:100%;min-height:48px;font-size:17px}
+.card small{display:block;margin-top:12px;font-size:12.5px;line-height:1.45;color:var(--dim)}
+
+.result{position:absolute;top:12px;right:12px;width:min(330px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;background:#141d20f2;border:1px solid #3a4a50;border-radius:16px;padding:16px 18px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.r-verdict{font:700 12px/1 var(--f-label);letter-spacing:.18em;text-transform:uppercase;color:var(--go)}
+.r-verdict.bad{color:var(--stop)}
+.r-time{font:700 50px/1 var(--f-display);font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.r-delta{font:600 14px/1.2 var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.result p{margin:10px 0 0;font-size:14.5px;line-height:1.4;color:#d4dedc}
+.result ul{margin:8px 0 0;padding-left:18px;font-size:13.5px;color:#ffc4bb;line-height:1.45}
+.r-best{color:var(--dim)!important;font-size:13px!important}
+.r-actions{display:flex;gap:8px;margin-top:14px}
+.r-actions button{flex:1;min-height:42px;padding:0 10px}
+
+.rotate{display:none;font-size:13px;color:var(--dim);text-align:center}
+@media (max-width:1100px){.hud{grid-template-columns:auto 1fr auto}.pfstatus{grid-column:1/-1;grid-row:2}}
+@media (max-width:640px){
+  .hud{grid-template-columns:1fr auto;gap:8px 12px}.controls{grid-column:1/-1;justify-content:flex-start}
+  .brand h1{font-size:20px}.time{font-size:36px}.clock{min-width:140px}
+  button{min-height:36px;padding:0 12px;font-size:13px}
+  .pips li{width:12px}
+  .coach{font-size:14px}
+}
+@media (orientation:portrait) and (max-width:640px){.rotate{display:block}}
+@media (max-height:560px) and (orientation:landscape){
+  .app{gap:6px;padding-block:6px}
+  .hud{grid-template-columns:auto auto minmax(0,1fr) auto}.brand{display:none}
+  .pfstatus{grid-column:auto;grid-row:auto;gap:4px}.pips li{width:12px;height:8px}.pfrow{grid-template-columns:34px auto minmax(0,1fr);gap:6px}.nextlbl{font-size:12px}.tag{font-size:11px;padding:3px 0}
+  .time{font-size:30px}.clock{min-width:120px;gap:4px}.track small{display:none}
+  .controls{flex-wrap:nowrap}button{min-height:32px;padding:0 10px;font-size:12px}
+  .coachbar{min-height:32px;padding:3px 6px}.chip{padding:5px 8px;font-size:12px}.coach{font-size:13.5px}
+  .result{padding:12px 14px}.r-time{font-size:36px}
+}
+@media (prefers-reduced-motion:reduce){
+  .flow,.blink,.zone.hint rect,.pf.selected .sel,.hintable.hint{animation:none}
+  .toast{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hud">
+    <div class="brand"><div class="kicker">Baseline barista drill</div><h1>Work the Bar</h1></div>
+    <div class="clock" aria-label="Preparation time">
+      <div class="time" id="time">0:00.0</div>
+      <div class="track" id="track"><span id="trackFill"></span><small>Target 0:50</small></div>
+    </div>
+    <div class="pfstatus" aria-label="Steps completed per portafilter">
+      <div class="pfrow"><span class="tag p1">PF1</span><ol class="pips" id="pips1"></ol><span class="nextlbl" id="next1"></span></div>
+      <div class="pfrow"><span class="tag p2">PF2</span><ol class="pips" id="pips2"></ol><span class="nextlbl" id="next2"></span></div>
+    </div>
+    <div class="controls">
+      <button id="hintBtn" type="button">Hint</button>
+      <button id="coachBtn" type="button" aria-pressed="true">Coach on</button>
+      <button id="fsBtn" type="button">Full screen</button>
+      <button id="resetBtn" type="button" class="primary">Restart</button>
+    </div>
+  </header>
+
+  <div class="coachbar">
+    <span class="chip" id="hands">Hands free</span>
+    <span class="chip" id="grindChip">Grinder idle</span>
+    <p class="coach" id="coach" aria-live="polite"></p>
+  </div>
+  <div class="rotate" id="rotateTip">Turn your phone sideways for a bigger bar.</div>
+
+  <div class="stage" id="stage">
+<svg id="bar" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Espresso bar. Portafilters, tools, towel and cups can be dragged, or tapped and then placed by tapping a station.">
+<defs>
+  <linearGradient id="gSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f6f7"/><stop offset=".45" stop-color="#a6b0b5"/><stop offset=".56" stop-color="#cdd5d8"/><stop offset="1" stop-color="#6d787d"/></linearGradient>
+  <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#58636a"/><stop offset=".28" stop-color="#f4f7f8"/><stop offset=".55" stop-color="#a8b3b8"/><stop offset=".8" stop-color="#dfe5e7"/><stop offset="1" stop-color="#4e585e"/></linearGradient>
+  <linearGradient id="gEnamel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#14342e"/><stop offset=".45" stop-color="#2f6556"/><stop offset=".6" stop-color="#3b7563"/><stop offset="1" stop-color="#122e29"/></linearGradient>
+  <linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10181b"/><stop offset="1" stop-color="#1c272b"/></linearGradient>
+  <linearGradient id="gCounter" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5e3d28"/><stop offset=".35" stop-color="#7c5236"/><stop offset="1" stop-color="#8f6143"/></linearGradient>
+  <linearGradient id="gGrinder" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b1e20"/><stop offset=".4" stop-color="#3b4246"/><stop offset=".55" stop-color="#454d52"/><stop offset="1" stop-color="#17191b"/></linearGradient>
+  <linearGradient id="gWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b0703f"/><stop offset=".5" stop-color="#7d4523"/><stop offset="1" stop-color="#4e2812"/></linearGradient>
+  <linearGradient id="gRecess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0f11"/><stop offset="1" stop-color="#1b2326"/></linearGradient>
+  <radialGradient id="gGlow" cx=".5" cy="0" r=".75"><stop offset="0" stop-color="#ffc98a" stop-opacity=".34"/><stop offset=".55" stop-color="#ffb46a" stop-opacity=".08"/><stop offset="1" stop-color="#ffb46a" stop-opacity="0"/></radialGradient>
+  <radialGradient id="gHopper" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#e8f4f8" stop-opacity=".35"/><stop offset="1" stop-color="#9fb8c0" stop-opacity=".12"/></radialGradient>
+  <pattern id="pTile" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M0 .75H60M0 30.75H60M.75 0V30M30.75 30V60" stroke="#263337" stroke-width="1.5" fill="none"/></pattern>
+  <pattern id="pGrounds" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#7b4e2c"/><circle cx="2" cy="2" r="1.2" fill="#5a3519"/><circle cx="6" cy="5" r="1" fill="#a06f43"/><circle cx="3.5" cy="6.8" r=".8" fill="#47280f"/></pattern>
+  <pattern id="pBeans" width="24" height="18" patternUnits="userSpaceOnUse"><rect width="24" height="18" fill="#2c180c"/><ellipse cx="6" cy="5" rx="5.4" ry="3.7" fill="#6e4024" transform="rotate(-22 6 5)"/><path d="M2 6.4Q6 4.2 10 3.6" stroke="#2a150a" stroke-width="1.1" fill="none"/><ellipse cx="17" cy="12" rx="5.4" ry="3.7" fill="#5c331b" transform="rotate(28 17 12)"/><path d="M13 10Q17 12.6 21 14" stroke="#24120a" stroke-width="1.1" fill="none"/></pattern>
+  <pattern id="pNubs" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="14" height="14" fill="#182023"/><circle cx="7" cy="7" r="2.6" fill="#232d31"/></pattern>
+  <filter id="fShadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#000" flood-opacity=".45"/></filter>
+</defs>
+
+<!-- wall -->
+<rect width="1200" height="470" fill="url(#gWall)"/>
+<rect width="1200" height="470" fill="url(#pTile)"/>
+<rect width="1200" height="470" fill="url(#gGlow)"/>
+<!-- pendant lamp -->
+<path d="M600 0V22" stroke="#0b0f10" stroke-width="3"/>
+<path d="M574 40Q576 22 600 21Q624 22 626 40Z" fill="#c9883f"/>
+<ellipse cx="600" cy="41" rx="18" ry="4" fill="#ffe2b0"/>
+
+<!-- order ticket on rail -->
+<rect x="925" y="62" width="250" height="9" rx="4" fill="url(#gChrome)"/>
+<g transform="rotate(2 1050 150)">
+  <path d="M978 70H1122V236L1110 230L1098 236L1086 230L1074 236L1062 230L1050 236L1038 230L1026 236L1014 230L1002 236L990 230L978 236Z" fill="#f2ecdf"/>
+  <text x="992" y="96" class="lbl" font-size="12" fill="#6a5f53">Order 07 · Bar</text>
+  <text x="992" y="128" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="24" fill="#2b2420">4 × ESPRESSO</text>
+  <text x="992" y="150" class="lbl" font-size="12" fill="#6a5f53">Singles · 20 g in</text>
+  <g id="ticks" font-family="Barlow Condensed, sans-serif" font-size="14" fill="#2b2420">
+    <g transform="translate(992 168)"><rect width="14" height="14" rx="2" fill="none" stroke="#2b2420" stroke-width="1.6"/><path class="tick" d="M3 7l3 3 6-7" stroke="#2c8a52" stroke-width="2.4" fill="none" opacity="0"/><text x="20" y="12">Cup 1</text></g>
+    <g transform="translate(1056 168)"><rect width="14" height="14" rx="2" fill="none" stroke="#2b2420" stroke-width="1.6"/><path class="tick" d="M3 7l3 3 6-7" stroke="#2c8a52" stroke-width="2.4" fill="none" opacity="0"/><text x="20" y="12">Cup 2</text></g>
+    <g transform="translate(992 194)"><rect width="14" height="14" rx="2" fill="none" stroke="#2b2420" stroke-width="1.6"/><path class="tick" d="M3 7l3 3 6-7" stroke="#2c8a52" stroke-width="2.4" fill="none" opacity="0"/><text x="20" y="12">Cup 3</text></g>
+    <g transform="translate(1056 194)"><rect width="14" height="14" rx="2" fill="none" stroke="#2b2420" stroke-width="1.6"/><path class="tick" d="M3 7l3 3 6-7" stroke="#2c8a52" stroke-width="2.4" fill="none" opacity="0"/><text x="20" y="12">Cup 4</text></g>
+  </g>
+</g>
+<!-- bean shelf -->
+<g filter="url(#fShadow)">
+  <path d="M948 330V262Q950 250 962 249H1004Q1016 250 1018 262V330Z" fill="#c8a57a"/>
+  <path d="M955 249L962 238H1004L1011 249Z" fill="#b08c62"/>
+  <rect x="958" y="276" width="50" height="34" rx="3" fill="#2a1d14"/>
+  <text x="983" y="292" text-anchor="middle" class="lbl" font-size="10" fill="#f0a95a">House</text>
+  <text x="983" y="304" text-anchor="middle" class="lbl" font-size="8" fill="#d8c6ae">Espresso</text>
+  <path d="M1030 330V270Q1032 260 1042 259H1080Q1090 260 1092 270V330Z" fill="#a8835a"/>
+  <rect x="1038" y="282" width="46" height="26" rx="3" fill="#ece3d2"/>
+  <text x="1061" y="299" text-anchor="middle" class="lbl" font-size="9" fill="#3b2a1d">Decaf</text>
+  <rect x="1110" y="268" width="48" height="62" rx="9" fill="url(#gHopper)" stroke="#9fb8c0" stroke-opacity=".45" stroke-width="2"/>
+  <rect x="1114" y="290" width="40" height="36" rx="6" fill="url(#pBeans)"/>
+  <rect x="1106" y="260" width="56" height="12" rx="4" fill="#2b2f31"/>
+  <rect x="925" y="330" width="255" height="11" rx="2" fill="#5a3a25"/>
+</g>
+
+<!-- counter -->
+<path d="M0 455H1200V695H0Z" fill="url(#gCounter)"/>
+<g stroke="#5a3a26" stroke-opacity=".45" stroke-width="2">
+  <path d="M100 455L60 695M250 455L225 695M400 455L390 695M550 455L548 695M700 455L708 695M850 455L870 695M1000 455L1032 695M1150 455L1194 695"/>
+</g>
+<path d="M0 456H1200" stroke="#a87652" stroke-width="2"/>
+<rect y="695" width="1200" height="25" fill="#3b2619"/>
+<path d="M0 695.5H1200" stroke="#b07d58" stroke-opacity=".6" stroke-width="1.5"/>
+
+<!-- grinder -->
+<g filter="url(#fShadow)">
+  <rect x="80" y="30" width="160" height="14" rx="6" fill="#2b2f31"/>
+  <path d="M86 44H234L206 175H114Z" fill="url(#gHopper)" stroke="#d9e8ec" stroke-opacity=".45" stroke-width="2"/>
+  <path d="M96 88H224L206 172H114Z" fill="url(#pBeans)" opacity=".95"/>
+  <path d="M98 50L118 168" stroke="#ffffff" stroke-opacity=".25" stroke-width="5" stroke-linecap="round"/>
+  <rect x="106" y="172" width="108" height="20" rx="4" fill="url(#gChrome)"/>
+  <path d="M82 190H238Q250 190 250 202V438Q250 450 238 450H82Q70 450 70 438V202Q70 190 82 190Z" fill="url(#gGrinder)"/>
+  <rect x="120" y="208" width="80" height="38" rx="7" fill="#081012" stroke="#2f383c" stroke-width="2"/>
+  <text id="grindLcd" x="160" y="234" text-anchor="middle" class="lcd" font-size="18" fill="#8ff0b5">READY</text>
+  <text x="160" y="266" text-anchor="middle" class="lbl" font-size="10" fill="#7d8c90">Burr 64 · On demand</text>
+  <path d="M146 276H174L169 304H151Z" fill="#101315"/>
+  <path d="M100 322H220V333H208V350H196V333H124V350H112V333H100Z" fill="url(#gChrome)"/>
+  <rect x="84" y="430" width="152" height="14" rx="4" fill="#111416"/>
+</g>
+<g id="grounds" opacity="0"><path class="flow" d="M154 304V352M160 304V354M166 304V352" stroke="#8a5a34" stroke-width="3.2" stroke-dasharray="3 4"/></g>
+
+<!-- espresso machine -->
+<g filter="url(#fShadow)">
+  <rect x="338" y="448" width="34" height="10" rx="3" fill="#15191b"/><rect x="828" y="448" width="34" height="10" rx="3" fill="#15191b"/>
+  <rect x="322" y="118" width="40" height="334" rx="10" fill="url(#gEnamel)"/>
+  <rect x="838" y="118" width="40" height="334" rx="10" fill="url(#gEnamel)"/>
+  <rect x="352" y="118" width="496" height="142" rx="4" fill="url(#gSteel)"/>
+  <rect x="318" y="102" width="564" height="18" rx="6" fill="url(#gChrome)"/>
+  <rect x="352" y="258" width="496" height="182" fill="url(#gRecess)"/>
+  <rect x="540" y="138" width="120" height="44" rx="8" fill="#152a26" stroke="#b58a45" stroke-width="2"/>
+  <text x="600" y="163" text-anchor="middle" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="17" letter-spacing="3" fill="#f0a95a">BASELINE</text>
+  <text x="600" y="176" text-anchor="middle" class="lbl" font-size="8.5" fill="#9fc1b4">Two group</text>
+  <g transform="translate(395 182)">
+    <circle r="27" fill="#b58a45"/><circle r="22" fill="#f4efe4"/>
+    <path d="M-15 8A17 17 0 1 1 15 8" fill="none" stroke="#2a2522" stroke-width="1.4" stroke-dasharray="1.5 4.2"/>
+    <path d="M7 10A13 13 0 0 0 13 -2" fill="none" stroke="#3aa36b" stroke-width="3"/>
+    <path d="M0 0L11 -9" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round"/><circle r="3" fill="#2a2522"/>
+    <text y="14" text-anchor="middle" class="lbl" font-size="6.5" fill="#6b625a">Boiler</text>
+  </g>
+  <g transform="translate(805 182)">
+    <circle r="27" fill="#b58a45"/><circle r="22" fill="#f4efe4"/>
+    <path d="M-15 8A17 17 0 1 1 15 8" fill="none" stroke="#2a2522" stroke-width="1.4" stroke-dasharray="1.5 4.2"/>
+    <path d="M7 10A13 13 0 0 0 13 -2" fill="none" stroke="#3aa36b" stroke-width="3"/>
+    <path id="pumpNeedle" d="M0 0L-12 -6" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round"/><circle r="3" fill="#2a2522"/>
+    <text y="14" text-anchor="middle" class="lbl" font-size="6.5" fill="#6b625a">Pump bar</text>
+  </g>
+  <circle cx="342" cy="150" r="11" fill="#1a1d1f" stroke="url(#gChrome)" stroke-width="4"/>
+  <circle cx="858" cy="150" r="11" fill="#1a1d1f" stroke="url(#gChrome)" stroke-width="4"/>
+  <path d="M343 262V360Q343 392 360 404" fill="none" stroke="url(#gChrome)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M857 262V360Q857 392 840 404" fill="none" stroke="url(#gChrome)" stroke-width="7" stroke-linecap="round"/>
+  <!-- group heads -->
+  <g><rect x="436" y="258" width="68" height="42" rx="8" fill="url(#gChrome)"/><rect x="452" y="248" width="36" height="14" rx="3" fill="url(#gChrome)"/><ellipse cx="470" cy="302" rx="47" ry="9" fill="url(#gChrome)"/></g>
+  <g><rect x="696" y="258" width="68" height="42" rx="8" fill="url(#gChrome)"/><rect x="712" y="248" width="36" height="14" rx="3" fill="url(#gChrome)"/><ellipse cx="730" cy="302" rx="47" ry="9" fill="url(#gChrome)"/></g>
+  <!-- brew buttons -->
+  <g transform="translate(470 196)"><circle r="19" fill="#20272a" stroke="url(#gChrome)" stroke-width="5"/><circle id="led1" r="10" fill="#3a4448"/></g>
+  <g transform="translate(730 196)"><circle r="19" fill="#20272a" stroke="url(#gChrome)" stroke-width="5"/><circle id="led2" r="10" fill="#3a4448"/></g>
+  <!-- drip tray -->
+  <rect x="352" y="434" width="496" height="20" rx="4" fill="url(#gSteel)"/>
+  <path d="M362 438H838" stroke="#5c676c" stroke-width="3" stroke-dasharray="14 5"/>
+</g>
+<g transform="translate(470 237)"><rect x="-74" y="-14" width="148" height="25" rx="12.5" fill="#0d1416" opacity=".88"/><text id="gs1" class="chiptext" y="4" fill="#cfe0dc">TAP TO FLUSH</text></g>
+<g transform="translate(730 237)"><rect x="-74" y="-14" width="148" height="25" rx="12.5" fill="#0d1416" opacity=".88"/><text id="gs2" class="chiptext" y="4" fill="#cfe0dc">TAP TO FLUSH</text></g>
+<!-- water and coffee streams -->
+<g id="flush1" opacity="0"><path class="flow" d="M456 308V434M470 308V434M484 308V434" stroke="#8fd6f0" stroke-width="3.2" stroke-dasharray="6 8"/></g>
+<g id="flush2" opacity="0"><path class="flow" d="M716 308V434M730 308V434M744 308V434" stroke="#8fd6f0" stroke-width="3.2" stroke-dasharray="6 8"/></g>
+<g id="shot1" opacity="0"><path class="flow" id="shot1a" stroke="#6a3418" stroke-width="3.6" stroke-dasharray="9 5" fill="none"/><path class="flow" id="shot1b" stroke="#6a3418" stroke-width="3.6" stroke-dasharray="9 5" fill="none"/></g>
+<g id="shot2" opacity="0"><path class="flow" id="shot2a" stroke="#6a3418" stroke-width="3.6" stroke-dasharray="9 5" fill="none"/><path class="flow" id="shot2b" stroke="#6a3418" stroke-width="3.6" stroke-dasharray="9 5" fill="none"/></g>
+
+<!-- knock box -->
+<g filter="url(#fShadow)">
+  <ellipse cx="125" cy="560" rx="70" ry="15" fill="#070909"/>
+  <ellipse cx="112" cy="566" rx="22" ry="6" fill="#3a2416"/><ellipse cx="140" cy="568" rx="20" ry="5" fill="#2f1d12"/>
+</g>
+<ellipse id="puck" cx="125" cy="560" rx="27" ry="9" fill="#3d2616" stroke="#6d4528" stroke-width="2" opacity="0"/>
+<path d="M55 560A70 15 0 0 0 195 560V642Q195 656 181 656H69Q55 656 55 642Z" fill="#1d2225"/>
+<path d="M55 560A70 15 0 0 0 195 560" fill="none" stroke="#353d41" stroke-width="5"/>
+<ellipse cx="125" cy="560" rx="70" ry="15" fill="none" stroke="#2c3438" stroke-width="5"/>
+<rect x="58" y="552" width="134" height="10" rx="5" fill="#40484c"/>
+<text x="125" y="620" text-anchor="middle" class="lbl" font-size="13" fill="#7d8c90">Knock box</text>
+
+<!-- scale -->
+<g filter="url(#fShadow)">
+  <rect x="325" y="582" width="180" height="72" rx="12" fill="#222a2d"/>
+  <rect x="333" y="568" width="164" height="20" rx="6" fill="url(#gSteel)"/>
+  <rect x="372" y="602" width="86" height="32" rx="6" fill="#071012" stroke="#334045" stroke-width="2"/>
+  <text id="scaleLcd" x="451" y="625" text-anchor="end" class="lcd" font-size="18" fill="#9ff5c4">0.0 g</text>
+  <circle id="scaleLed" cx="474" cy="618" r="5" fill="#3a4448"/>
+  <text x="350" y="646" class="lbl" font-size="10" fill="#7d8c90">Scale</text>
+</g>
+
+<!-- tamping mat -->
+<g filter="url(#fShadow)">
+  <rect x="545" y="530" width="635" height="140" rx="20" fill="url(#pNubs)" stroke="#2b3539" stroke-width="2"/>
+  <ellipse cx="640" cy="608" rx="54" ry="13" fill="none" stroke="#3a474c" stroke-width="2" stroke-dasharray="5 6"/>
+  <ellipse cx="800" cy="608" rx="54" ry="13" fill="none" stroke="#3a474c" stroke-width="2" stroke-dasharray="5 6"/>
+  <text x="566" y="658" class="lbl" font-size="11" fill="#55666b">Tamping mat</text>
+</g>
+
+<!-- drop zones (also tap targets) -->
+<g id="zones"></g>
+<g id="objects"></g>
+</svg>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <aside class="result" id="result" hidden aria-live="polite">
+      <div class="r-verdict" id="rVerdict">Valid run</div>
+      <div class="r-time" id="rTime">0:00.0</div>
+      <div class="r-delta" id="rDelta"></div>
+      <p id="rAdvice"></p>
+      <ul id="rMissing"></ul>
+      <p id="rCups"></p>
+      <p class="r-best" id="rBest"></p>
+      <div class="r-actions"><button id="rAgain" class="primary" type="button">Run it again</button><button id="rClose" type="button">Watch shots</button></div>
+    </aside>
+
+    <div class="overlay" id="startCard">
+      <div class="card" role="dialog" aria-labelledby="startTitle">
+        <div class="kicker">Order 07 · Bar</div>
+        <h2 id="startTitle">4 single espressos. <em>Under 50 seconds.</em></h2>
+        <ul>
+          <li data-n="1">Drag a portafilter to a station, or tap it and then tap the station.</li>
+          <li data-n="2">The clock starts when the first portafilter leaves its group. It stops when both shots are running.</li>
+          <li data-n="3">The grinder runs hands-free for 7 seconds. Your hands do one job at a time, so overlap the work.</li>
+        </ul>
+        <button class="primary" id="startBtn" type="button">Open the bar</button>
+        <small>Fixed, illustrative action timings. This is a practice drill, not an exam certification tool.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const svg=$('bar');
+const STEPS=['knock','flush','dry','grind','weigh','distribute','tamp','insert','pump'];
+const LABEL={knock:'Knock out',flush:'Flush',dry:'Wipe',grind:'Grind',weigh:'Weigh',distribute:'Distribute',tamp:'Tamp',insert:'Lock in',pump:'Brew'};
+const LONG={knock:'Knock out the puck',flush:'Flush the group',dry:'Wipe the basket dry',grind:'Grind the dose',weigh:'Weigh the dose',distribute:'Distribute',tamp:'Tamp',insert:'Lock into the group',pump:'Start the shot'};
+const DOING={knock:'Knocking out',flush:'Flushing',dry:'Wiping',weigh:'Weighing',distribute:'Distributing',tamp:'Tamping',insert:'Locking in',pump:'Starting shot'};
+const DUR={knock:1,flush:2,dry:.9,weigh:.5,distribute:.8,tamp:.65,insert:1.5,pump:.5};
+const GRIND=7,FLOW=6.5,SHOT=28,TARGET=50;
+const POS={group1:[470,312],group2:[730,312],grinder:[160,343],knock:[125,546],scale:[415,540],matA:[640,570],matB:[800,570]};
+const ZONES={group1:[392,250,156,196],group2:[652,250,156,196],grinder:[42,176,236,280],knock:[36,492,182,180],scale:[312,492,206,180],mat:[540,492,420,186]};
+const ZNAME={group1:'Group 1',group2:'Group 2',grinder:'Grinder',knock:'Knock box',scale:'Scale',mat:'Mat'};
+const HOME={distribute:[1010,612],tamp:[1112,608],towel:[262,690]};
+const CUPHOME={1:[412,102],2:[462,102],3:[738,102],4:[788,102]},CUPAT={1:[445,434],2:[495,434],3:[705,434],4:[755,434]};
+const BED={puck:'#3b2617',wet:'#8f9da1',clean:'#c3ccce',grinding:'#c3ccce',ground:'#8a5d39',level:'url(#pGrounds)',tamped:'#5e3b22'};
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const fmt=t=>Math.floor(t/60)+':'+(t%60).toFixed(1).padStart(4,'0');
+let best=null;try{const b=parseFloat(localStorage.getItem('wtb-best'));if(b>0)best=b}catch(e){}
+
+/* ---------- build dynamic SVG ---------- */
+const zonesEl=$('zones'),objEl=$('objects');
+zonesEl.innerHTML=Object.entries(ZONES).map(([z,[x,y,w,h]])=>`<g class="zone" id="z-${z}" data-zone="${z}" tabindex="0" role="button" aria-label="${ZNAME[z]}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18"/><text class="lbl" x="${x+w/2}" y="${y+24}">${ZNAME[z]}</text></g>`).join('');
+
+const cup=i=>`<g class="grab cup hintable" id="cup${i}" tabindex="0" role="button" aria-label="Espresso cup ${i}. Sets both cups under Group ${i<=2?1:2}.">
+<circle class="hit" cy="-18" r="34" fill="transparent"/>
+<ellipse cy="1" rx="27" ry="5.5" fill="#d9d1c2"/><ellipse cy="-1" rx="22" ry="4" fill="#f4efe5"/>
+<path d="M17 -28c11 -1 14 9 7 13c-3 2 -6 2 -9 1" fill="none" stroke="#efe9de" stroke-width="4.5" stroke-linecap="round"/>
+<path d="M-18 -34H18C18 -16 13 -5 0 -4C-13 -5 -18 -16 -18 -34Z" fill="#f7f3eb"/>
+<path d="M-18 -34C-18 -16 -13 -5 0 -4C-8 -6 -12 -15 -12 -34Z" fill="#e1d9cb"/>
+<ellipse cy="-34" rx="18" ry="5" fill="#cfc6b6"/>
+<ellipse class="coffee" cy="-33" rx="15" ry="3.8" fill="#c68a4a" opacity="0"/></g>`;
+
+const pf=(p,band)=>`<g class="grab pf" id="pf${p}" tabindex="0" role="button" aria-label="Portafilter ${p}" data-c="puck">
+<ellipse class="sel" cy="12" rx="70" ry="34" fill="none" stroke="#f0a95a" stroke-width="3" stroke-dasharray="7 9"/>
+<ellipse class="drop" cx="16" cy="52" rx="66" ry="9" fill="#000" opacity=".32"/>
+<path d="M-20 26L-24 41H-12L-10 26ZM10 26L12 41H24L20 26Z" fill="url(#gChrome)"/>
+<rect x="-14" y="26" width="28" height="7" rx="2" fill="#6d787d"/>
+<path d="M-46 0C-46 22 -26 32 0 32C26 32 46 22 46 0Z" fill="url(#gSteel)"/>
+<path d="M36 4L70 10L68 22L34 18Z" fill="url(#gChrome)"/>
+<path d="M66 8C100 12 130 18 158 26C167 29 167 39 157 41C128 38 98 31 66 24Z" fill="url(#gWood)"/>
+<path d="M70 8.6L78 9.8L76.5 25.6L68.5 24.4Z" fill="${band}"/>
+<text x="132" y="36" transform="rotate(12 132 32)" text-anchor="middle" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="15" fill="${band}">${p}</text>
+<path d="M-55 -3H-43V5H-55ZM43 -3H55V5H43Z" fill="url(#gChrome)"/>
+<ellipse rx="46" ry="15" fill="url(#gChrome)"/>
+<ellipse class="bed" rx="39" ry="11.5" cy="1" fill="#3b2617"/>
+<path class="crack" d="M-22 -2L-6 3L4 -3L20 4" fill="none" stroke="#1d110a" stroke-width="2"/>
+<g class="drops" fill="#eaf6fb" opacity=".8"><ellipse cx="-14" cy="0" rx="3" ry="1.6"/><ellipse cx="8" cy="4" rx="2.4" ry="1.3"/><ellipse cx="18" cy="-3" rx="2" ry="1.1"/><ellipse cx="-2" cy="-4" rx="1.6" ry="1"/></g>
+<ellipse class="mound" cy="-3" rx="34" ry="12" fill="url(#pGrounds)"/>
+<ellipse class="tampmark" rx="32" ry="9" cy="1" fill="none" stroke="#a87445" stroke-width="2" opacity=".75"/>
+<rect class="collar" x="-52" y="-14" width="104" height="15" rx="4" fill="url(#gChrome)"/>
+<circle class="hit" cy="10" r="72" fill="transparent"/>
+<path class="hit" d="M30 -6L170 14L170 50L30 32Z" fill="transparent"/>
+<circle class="ring" cy="10" r="64" fill="none" stroke="#f0a95a" stroke-width="6" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 0 10)"/>
+</g>`;
+
+objEl.innerHTML=[1,2,3,4].map(cup).join('')+`
+<g class="grab hintable" id="t-towel" tabindex="0" role="button" aria-label="Towel. Wipes a knocked-out basket dry.">
+<rect class="hit" x="-58" y="-48" width="116" height="80" fill="transparent"/>
+<path d="M-40 -26Q0 -36 42 -26L40 12Q38 27 30 28H-30Q-37 27 -38 12Z" fill="#cfded7"/>
+<path d="M-40 -26Q0 -36 42 -26L41 -14Q0 -24 -40 -14Z" fill="#e7f1ec"/>
+<path d="M-39 2H41M-39 10H41" stroke="#5f9d8b" stroke-width="3.5"/>
+<text y="24" text-anchor="middle" class="lbl" font-size="9" fill="#4c7a6c">Towel</text></g>
+<g class="grab hintable" id="t-distribute" tabindex="0" role="button" aria-label="Distributor. Drop onto a dosed portafilter on the mat.">
+<circle class="hit" cy="-16" r="62" fill="transparent"/>
+<ellipse cy="5" rx="40" ry="8" fill="#000" opacity=".3"/>
+<path d="M-38 -14V0Q0 12 38 0V-14Z" fill="url(#gChrome)"/>
+<ellipse cy="-14" rx="38" ry="10" fill="#d3dadd"/>
+<path d="M-28 -30V-16Q0 -8 28 -16V-30Z" fill="#3a2418"/>
+<path d="M-20 -29V-12M-10 -30V-9M0 -30V-8M10 -30V-9M20 -29V-12" stroke="#5c3c28" stroke-width="2"/>
+<ellipse cy="-30" rx="28" ry="8" fill="#5a3a26"/><circle cy="-30" r="4" fill="#f0a95a"/>
+<text y="30" text-anchor="middle" class="lbl" font-size="11" fill="#9fb1b4">Distributor</text></g>
+<g class="grab hintable" id="t-tamp" tabindex="0" role="button" aria-label="Tamper. Drop onto a distributed portafilter on the mat.">
+<circle class="hit" cy="-30" r="62" fill="transparent"/>
+<ellipse cy="5" rx="38" ry="8" fill="#000" opacity=".3"/>
+<path d="M-36 -10V0Q0 11 36 0V-10Z" fill="url(#gChrome)"/>
+<ellipse cy="-10" rx="36" ry="9.5" fill="#d3dadd"/>
+<rect x="-7" y="-42" width="14" height="32" fill="url(#gChrome)"/>
+<ellipse cy="-64" rx="21" ry="27" fill="url(#gWood)"/>
+<ellipse cx="-6" cy="-74" rx="5" ry="9" fill="#ffffff" opacity=".18"/>
+<text y="30" text-anchor="middle" class="lbl" font-size="11" fill="#9fb1b4">Tamper</text></g>
+`+pf(1,'#f0a95a')+pf(2,'#7fd1c0');
+
+const PFEL={1:$('pf1'),2:$('pf2')},TOOL={distribute:$('t-distribute'),tamp:$('t-tamp'),towel:$('t-towel')};
+for(const p of [1,2])$('pips'+p).innerHTML=STEPS.map(k=>`<li data-k="${k}" title="${LONG[k]}">${LABEL[k]}</li>`).join('');
+
+/* ---------- state ---------- */
+let S,drag=null,coaching=true,hintUntil=0,resultClosed=false,toastTimer=0;
+function mk(p){return{p,loc:'group'+p,done:{},contents:'puck',insertedAt:null,delayed:false}}
+function init(){
+  S={pf:{1:mk(1),2:mk(2)},t0:null,elapsed:0,now:0,busy:null,grinder:null,shots:{},cups:{1:null,2:null},cupsLate:{},finished:false,selected:null,acts:[],grindWins:[],result:null};
+  drag=null;resultClosed=false;$('result').hidden=true;
+  for(const el of Object.values(TOOL))el.classList.remove('lifted');
+}
+const startClock=()=>{if(S.t0===null)S.t0=performance.now()/1000};
+const prog=()=>S.busy?clamp((S.elapsed-S.busy.start)/DUR[S.busy.k]):0;
+const occupant=(z,p)=>[1,2].find(q=>q!==p&&S.pf[q].loc===z);
+
+function toast(msg,kind='info'){const t=$('toast');t.textContent=msg;t.className='toast show '+kind;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className='toast '+kind,2800)}
+const handsBusy=()=>S.busy?`Hands busy: ${DOING[S.busy.k].toLowerCase()} PF${S.busy.p}.`:null;
+
+function act(k,p){
+  if(S.finished){toast('Run complete. Press Restart to go again.');return false}
+  if(S.busy){toast(handsBusy(),'warn');return false}
+  startClock();
+  S.busy={k,p,start:S.elapsed,end:S.elapsed+DUR[k]};
+  S.acts.push({...S.busy});
+  return true;
+}
+function complete(){
+  const {k,p,start}=S.busy,f=S.pf[p];
+  f.done[k]=true;
+  if(k==='knock')f.contents='wet';
+  if(k==='dry')f.contents='clean';
+  if(k==='distribute')f.contents='level';
+  if(k==='tamp')f.contents='tamped';
+  if(k==='insert'){f.insertedAt=S.elapsed;toast(`PF${p} locked in. Tap Group ${p} to brew now.`,'good')}
+  if(k==='pump'){S.shots[p]={start:S.elapsed};if(start-f.insertedAt>1)f.delayed=true}
+  S.busy=null;
+  if(S.shots[1]&&S.shots[2])finish();
+}
+function finish(){
+  S.finished=true;
+  const missing=[1,2].flatMap(p=>STEPS.filter(k=>!S.pf[p].done[k]).map(k=>`PF${p}: ${LONG[k]}`));
+  const delayed=S.pf[1].delayed||S.pf[2].delayed;
+  const valid=!missing.length&&!delayed;
+  const prevBest=best;
+  if(valid&&(best===null||S.elapsed<best)){best=S.elapsed;try{localStorage.setItem('wtb-best',String(best))}catch(e){}}
+  S.result={missing,delayed,valid,advice:runAdvice(missing,delayed),newBest:valid&&best===S.elapsed&&prevBest!==best};
+  showResult();
+}
+function runAdvice(missing,delayed){
+  const lazy=S.grindWins.find(w=>!S.acts.some(a=>a.p!==w.p&&Math.min(a.end,w.end)-Math.max(a.start,w.start)>.15));
+  const tip=lazy?`While PF${lazy.p} grinds, work on PF${3-lazy.p}.`:'Keep preparing the other handle while the first shot runs.';
+  if(missing.length)return `${missing.length} step${missing.length>1?'s':''} missed. Next run, add: ${missing[0].split(': ')[1].toLowerCase()} (${missing[0].split(':')[0]}).`;
+  if(delayed)return 'Every step done. Next, start the pump within 1 second of locking in.';
+  if(S.elapsed>=TARGET)return `Every step done. Now aim for under 0:50. ${tip}`;
+  if(lazy)return `All steps, under 50 seconds. Next challenge: ${tip}`;
+  return 'All steps, good overlap, and under the Baseline target. Clean run.';
+}
+
+/* ---------- moves ---------- */
+function place(p,loc){
+  const f=S.pf[p];
+  if(f.loc==='grinder'&&S.grinder&&S.grinder.p===p)S.grinder=null;
+  if(f.loc.startsWith('group'))startClock();
+  f.loc=loc;
+}
+function freeMat(p,pt){
+  const slots=['matA','matB'].filter(s=>!occupant(s,p));
+  if(!pt)return slots[0];
+  return slots.sort((a,b)=>Math.abs(pt[0]-POS[a][0])-Math.abs(pt[0]-POS[b][0]))[0];
+}
+function validZone(p,z){
+  const f=S.pf[p];
+  if(z===f.loc||(z==='mat'&&f.loc.startsWith('mat')))return false;
+  if(z.startsWith('group'))return +z.slice(-1)===p&&!!f.done.grind;
+  if(z!=='mat'&&occupant(z,p))return false;
+  if(z==='grinder')return !f.done.grind&&f.contents!=='puck'&&!S.grinder;
+  return true;
+}
+function movePF(p,z,pt){
+  const f=S.pf[p];
+  if(S.finished){toast('Run complete. Press Restart to go again.');return false}
+  if(S.busy){toast(handsBusy(),'warn');return false}
+  if(z===f.loc||(z==='mat'&&f.loc.startsWith('mat'))){toast(`PF${p} is already on the ${ZNAME[z].toLowerCase()}.`);return false}
+  if(z!=='mat'&&occupant(z,p)){toast(`The ${ZNAME[z].toLowerCase()} already holds PF${occupant(z,p)}.`,'warn');return false}
+  if(z==='mat'){place(p,freeMat(p,pt));return true}
+  if(z==='knock'){place(p,'knock');if(!f.done.knock)act('knock',p);else toast(`PF${p} is already empty.`);return true}
+  if(z==='grinder'){
+    if(f.done.grind){toast(`PF${p} already has its dose. One grind per handle.`,'warn');return false}
+    if(f.contents==='puck'){toast(`Knock out PF${p}'s old puck first.`,'warn');return false}
+    place(p,'grinder');startClock();
+    f.done.grind=true;f.contents='grinding';
+    S.grinder={p,start:S.elapsed,end:S.elapsed+GRIND,done:false};
+    S.grindWins.push({p,start:S.elapsed,end:S.elapsed+GRIND});
+    toast(`PF${p} latched. Grinding hands-free for 7 s. Work on PF${3-p}.`,'good');
+    return true;
+  }
+  if(z==='scale'){
+    place(p,'scale');
+    if(!f.done.grind)toast('That basket is empty. Grind a dose first.','warn');
+    else if(!f.done.weigh)act('weigh',p);
+    return true;
+  }
+  if(z.startsWith('group')){
+    const g=+z.slice(-1);
+    if(g!==p){toast(`PF${p} belongs in Group ${p}.`,'warn');return false}
+    if(!f.done.grind){toast(`Dose PF${p} before locking it in.`,'warn');return false}
+    place(p,z);act('insert',p);return true;
+  }
+  return false;
+}
+function flush(g){
+  const f=S.pf[g];
+  if(f.loc==='group'+g)return toast(`Lift PF${g} out of Group ${g} first.`);
+  if(act('flush',g))toast(`Flushing Group ${g}.`);
+}
+function brew(g){
+  const f=S.pf[g];
+  if(S.shots[g])return toast(`Group ${g} is already brewing.`);
+  if(f.loc!=='group'+g)return flush(g);
+  if(!f.done.insert)return toast(`Drag PF${g} to the knock box to begin.`);
+  act('pump',g);
+}
+function canPick(kind,id){
+  if(S.finished)return 'Run complete. Press Restart to go again.';
+  if(kind==='cup')return S.cups[id<=2?1:2]?'Those cups are already in place.':(S.busy?handsBusy():null);
+  if(S.busy)return handsBusy();
+  if(kind==='pf'){
+    const f=S.pf[id];
+    if(S.grinder&&S.grinder.p===id&&!S.grinder.done)return `Grinding: ${(S.grinder.end-S.elapsed).toFixed(1)} s left. Work on PF${3-id}.`;
+    if(f.loc.startsWith('group')&&f.done.insert)return S.shots[id]?`PF${id} is brewing.`:`PF${id} is locked in. Tap it to brew.`;
+  }
+  return null;
+}
+function toolTarget(kind){
+  const ok=p=>{const f=S.pf[p];
+    if(kind==='towel')return !f.loc.startsWith('group')&&f.contents==='wet';
+    if(!f.loc.startsWith('mat'))return false;
+    if(kind==='distribute')return f.contents==='ground';
+    return f.contents==='ground'||f.contents==='level';};
+  if(S.selected&&ok(S.selected))return S.selected;
+  return [1,2].find(ok)||null;
+}
+function useTool(kind,p){
+  if(S.finished){toast('Run complete. Press Restart to go again.');return false}
+  if(S.busy){toast(handsBusy(),'warn');return false}
+  if(!p){toast(kind==='towel'?'Nothing to wipe yet. Knock out a portafilter first.':'Move a dosed portafilter onto the mat first.');return false}
+  const f=S.pf[p];
+  if(kind==='towel'){
+    if(f.loc.startsWith('group'))return toast(`Take PF${p} out of the group first.`),false;
+    if(f.contents==='puck')return toast(`Knock out PF${p} first.`,'warn'),false;
+    if(f.done.grind)return toast(`PF${p} already holds coffee.`),false;
+    if(f.done.dry)return toast(`PF${p} is already clean and dry.`),false;
+    return act('dry',p);
+  }
+  if(!f.loc.startsWith('mat'))return toast(`Set PF${p} on the mat first.`,'warn'),false;
+  if(!f.done.grind||f.contents==='grinding')return toast(`PF${p} has no coffee yet.`),false;
+  if(kind==='distribute'){
+    if(f.done.distribute||f.done.tamp)return toast(`PF${p} is already distributed.`),false;
+    return act('distribute',p);
+  }
+  if(f.done.tamp)return toast(`PF${p} is already tamped.`),false;
+  if(!f.done.distribute)toast('Tip: distribute before tamping for an even bed.','warn');
+  return act('tamp',p);
+}
+function placeCups(g){
+  if(S.finished&&S.cups[g])return;
+  if(S.cups[g])return toast('Those cups are already in place.');
+  if(S.busy&&!S.finished)return toast(handsBusy(),'warn');
+  S.cups[g]=S.now;
+  const late=S.shots[g]&&S.now-S.shots[g].start>FLOW;
+  if(late)S.cupsLate[g]=true;
+  toast(late?`Cups set under Group ${g}, but after the coffee started. Place them sooner.`:`Cups set under Group ${g}.`,late?'warn':'good');
+}
+
+/* ---------- pointer handling ---------- */
+function svgPt(e){const q=svg.createSVGPoint();q.x=e.clientX;q.y=e.clientY;return q.matrixTransform(svg.getScreenCTM().inverse())}
+function inRect(z,[x,y]){const [rx,ry,w,h]=ZONES[z];return x>=rx&&x<=rx+w&&y>=ry&&y<=ry+h}
+function zoneAt(...pts){for(const pt of pts)for(const z of Object.keys(ZONES))if(inRect(z,pt))return z;return null}
+function basePos(kind,id){
+  if(kind==='pf')return POS[S.pf[id].loc];
+  if(kind==='cup')return S.cups[id<=2?1:2]?CUPAT[id]:CUPHOME[id];
+  return HOME[id];
+}
+function bindDrag(el,kind,id){
+  el.addEventListener('pointerdown',e=>{
+    if(e.button>0||drag)return;
+    e.preventDefault();e.stopPropagation();
+    const b=basePos(kind,id),q=svgPt(e);
+    drag={kind,id,el,sx:e.clientX,sy:e.clientY,off:[q.x-b[0],q.y-b[1]],pos:b.slice(),ptr:[q.x,q.y],moved:false,blocked:canPick(kind,id)};
+    try{el.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!drag||drag.el!==el)return;
+    if(!drag.moved){
+      if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<7)return;
+      drag.moved=true;
+      if(drag.blocked){toast(drag.blocked,'warn');return}
+      el.parentNode.appendChild(el);el.classList.add('lifted');
+      if(kind==='pf'){S.selected=id;if(S.pf[id].loc.startsWith('group'))startClock()}
+    }
+    if(drag.blocked)return;
+    const q=svgPt(e);drag.ptr=[q.x,q.y];drag.pos=[clamp(q.x-drag.off[0],30,1170),clamp(q.y-drag.off[1],40,700)];
+  });
+  const end=e=>{
+    if(!drag||drag.el!==el)return;
+    const d=drag;drag=null;el.classList.remove('lifted');
+    try{el.releasePointerCapture(e.pointerId)}catch(_){}
+    if(e.type==='pointercancel')return;
+    if(!d.moved)return onTap(kind,id);
+    if(d.blocked)return;
+    onDrop(kind,id,d);
+  };
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onTap(kind,id)}});
+}
+function onTap(kind,id){
+  if(kind==='pf'){
+    const f=S.pf[id];
+    if(f.loc==='group'+id&&f.done.insert)return brew(id);
+    const why=canPick('pf',id);if(why)return toast(why,'warn');
+    S.selected=S.selected===id?null:id;
+    if(S.selected)toast(`PF${id} picked up. Tap where it goes.`);
+    return;
+  }
+  if(kind==='cup')return placeCups(id<=2?1:2);
+  useTool(id,toolTarget(id));
+}
+function onDrop(kind,id,d){
+  if(kind==='pf'){
+    const z=zoneAt(d.pos,d.ptr);
+    if(!z){toast('Drop it on a station: knock box, grinder, scale, mat or its group.');return}
+    if(movePF(id,z,d.pos))S.selected=null;
+    return;
+  }
+  if(kind==='cup'){
+    const g=id<=2?1:2;
+    if(inRect('group'+g,d.ptr)||inRect('group'+g,d.pos))placeCups(g);
+    else toast(`Set these cups on the drip tray under Group ${g}.`);
+    return;
+  }
+  const near=[1,2].map(p=>[p,Math.hypot(d.pos[0]-POS[S.pf[p].loc][0],d.pos[1]-POS[S.pf[p].loc][1])]).filter(([,dist])=>dist<120).sort((a,b)=>a[1]-b[1])[0];
+  if(!near){toast(id==='towel'?'Drop the towel onto a portafilter basket.':'Drop the tool onto a portafilter on the mat.');return}
+  useTool(id,near[0]);
+}
+function onZoneTap(z){
+  if(z.startsWith('group')){
+    const g=+z.slice(-1),f=S.pf[g];
+    if(f.loc===z)return brew(g);
+    if(S.selected===g&&f.done.grind){if(movePF(g,z))S.selected=null;return}
+    return flush(g);
+  }
+  if(S.selected){if(movePF(S.selected,z))S.selected=null;return}
+  const info={grinder:'Drop a clean, dry portafilter here. It grinds hands-free for 7 s.',knock:'Drop a used portafilter here to knock out the puck.',scale:'Set a dosed portafilter here to check the weight.',mat:'Set a portafilter here, then use the distributor and tamper.'};
+  toast(info[z]);
+}
+bindDrag(PFEL[1],'pf',1);bindDrag(PFEL[2],'pf',2);
+for(const k of ['distribute','tamp','towel'])bindDrag(TOOL[k],'tool',k);
+for(const i of [1,2,3,4])bindDrag($('cup'+i),'cup',i);
+for(const z of document.querySelectorAll('.zone')){
+  z.addEventListener('click',()=>onZoneTap(z.dataset.zone));
+  z.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onZoneTap(z.dataset.zone)}});
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.selected){S.selected=null}});
+
+/* Keep hit areas at least ~30px radius on screen, however small the bar is drawn. */
+function sizeHits(){
+  const m=svg.getScreenCTM();if(!m)return;const k=m.a||1;
+  for(const c of document.querySelectorAll('.pf circle.hit'))c.setAttribute('r',Math.max(72,32/k));
+  for(const k2 of ['distribute','tamp'])TOOL[k2].querySelector('.hit').setAttribute('r',Math.max(62,30/k));
+  for(const i of [1,2,3,4])$('cup'+i).querySelector('.hit').setAttribute('r',Math.max(34,26/k));
+}
+addEventListener('resize',sizeHits);
+
+/* ---------- coaching ---------- */
+function prep(p){const f=S.pf[p];
+  if(!f.done.knock)return {t:`Knock out <b>PF${p}</b>: drop it on the knock box.`,z:'knock'};
+  if(!f.done.flush)return {t:`Tap <b>Group ${p}</b> to flush the shower screen.`,z:'group'+p};
+  if(!f.done.dry)return {t:`Wipe <b>PF${p}</b> dry: tap the towel.`,z:'towel'};
+  return null}
+function fin(p){const f=S.pf[p];
+  if(!f.done.weigh)return f.loc==='scale'?{t:`Weighing <b>PF${p}</b>…`}:{t:`Set <b>PF${p}</b> on the scale.`,z:'scale'};
+  if(!f.loc.startsWith('mat')&&!f.done.tamp)return {t:`Move <b>PF${p}</b> to the tamping mat.`,z:'mat'};
+  if(!f.done.distribute&&!f.done.tamp)return {t:`Drag the distributor onto <b>PF${p}</b>.`,z:'distribute'};
+  if(!f.done.tamp)return {t:`Tamp <b>PF${p}</b> level.`,z:'tamp'};
+  if(!f.done.insert)return {t:`Lock <b>PF${p}</b> into Group ${p}, then brew straight away.`,z:'group'+p};
+  return null}
+function advice(){
+  const P=S.pf;
+  if(S.t0===null)return {t:'Pick up <b>PF1</b> and drop it on the knock box. The clock starts as it leaves the group.',z:'knock'};
+  for(const g of [1,2])if(S.shots[g]&&!S.cups[g])return {t:`Set the cups under <b>Group ${g}</b>. Coffee flows ${FLOW} s after the pump starts.`,z:'cups'+g};
+  if(S.finished)return {t:S.result.advice};
+  if(S.busy)return {t:`${DOING[S.busy.k]} <b>PF${S.busy.p}</b>…`};
+  for(const p of [1,2])if(P[p].done.insert&&!S.shots[p])return {t:`Tap <b>Group ${p}</b> to brew now. Every second after locking in counts.`,z:'group'+p};
+  if(S.grinder&&!S.grinder.done){const o=3-S.grinder.p;return prep(o)||(!P[o].done.grind?{t:`PF${S.grinder.p} is grinding. Get <b>PF${o}</b> ready for the grinder.`}:fin(o))||{t:'Grinder running. Use the time.'}}
+  if(S.grinder&&S.grinder.done)return {t:`<b>PF${S.grinder.p}</b> is dosed. Move it to the scale.`,z:'scale'};
+  for(const p of [1,2])if(!P[p].done.grind&&!prep(p))return {t:`Drop <b>PF${p}</b> in the grinder cradle.`,z:'grinder'};
+  for(const p of [1,2])if(P[p].done.grind&&!S.shots[p]){const r=fin(p);if(r)return r}
+  for(const p of [1,2]){const r=prep(p);if(r)return r}
+  return {t:'Use machine time to prepare the other handle.'};
+}
+
+/* ---------- render ---------- */
+const cupEl={1:$('cup1'),2:$('cup2'),3:$('cup3'),4:$('cup4')};
+function setT(el,x,y,extra=''){el.setAttribute('transform',`translate(${x.toFixed(1)} ${y.toFixed(1)})${extra}`)}
+function render(){
+  const now=S.now,el=S.elapsed,u=prog(),B=S.busy;
+  const dragging=(kind,id)=>drag&&drag.moved&&!drag.blocked&&drag.kind===kind&&drag.id===id;
+
+  for(const p of [1,2]){
+    const f=S.pf[p],g=PFEL[p];
+    let [x,y]=dragging('pf',p)?drag.pos:POS[f.loc],rot=0;
+    if(B&&B.p===p&&B.k==='knock'){rot=-16*Math.sin(u*Math.PI);y-=Math.abs(Math.sin(u*Math.PI*3))*8}
+    if(B&&B.p===p&&B.k==='insert'){y+=(1-u)*26;rot=(1-u)*-20}
+    if(S.grinder&&S.grinder.p===p&&!S.grinder.done)x+=Math.sin(now*80)*.8;
+    setT(g,x,y,rot?` rotate(${rot.toFixed(1)})`:'');
+    g.dataset.c=f.contents;
+    g.querySelector('.bed').setAttribute('fill',BED[f.contents]);
+    g.classList.toggle('in-group',f.loc.startsWith('group')&&!dragging('pf',p));
+    g.classList.toggle('selected',S.selected===p&&!drag);
+    g.classList.toggle('working',!!(B&&B.p===p&&B.k!=='flush'));
+    if(B&&B.p===p)g.querySelector('.ring').setAttribute('stroke-dasharray',`${(u*100).toFixed(1)} 100`);
+    const mound=g.querySelector('.mound');
+    if(f.contents==='grinding'&&S.grinder){const k=clamp((el-S.grinder.start)/GRIND);mound.setAttribute('transform',`translate(0 ${(1-k)*3}) scale(${(.25+.75*k).toFixed(3)})`)}
+    else mound.removeAttribute('transform');
+    g.setAttribute('aria-label',`Portafilter ${p}, ${f.loc.startsWith('mat')?'on the mat':'at '+(ZNAME[f.loc]||f.loc)}`);
+  }
+
+  // tools
+  for(const k of ['distribute','tamp','towel']){
+    const t=TOOL[k];
+    if(dragging('tool',k)){setT(t,...drag.pos);continue}
+    const using=B&&(B.k===k||(k==='towel'&&B.k==='dry'));
+    if(!using){setT(t,...HOME[k]);continue}
+    const [px,py]=POS[S.pf[B.p].loc];
+    const lift=u<.2?36*(1-u/.2):u>.8?36*(u-.8)/.2:0;
+    if(k==='distribute'){setT(t,px,py+3-lift,` scale(${(.82+.18*Math.abs(Math.cos(u*22))).toFixed(3)} 1)`)}
+    else if(k==='tamp'){const press=u>.25&&u<.75?Math.sin((u-.25)/.5*Math.PI)*7:0;setT(t,px,py+2-lift+press)}
+    else{const s=Math.sin(u*Math.PI*6);setT(t,px+s*16,py+4,` scale(.72) rotate(${(s*8).toFixed(1)})`)}
+    if(t.parentNode.lastChild!==t)t.parentNode.appendChild(t);
+  }
+
+  // machine
+  for(const g of [1,2]){
+    const f=S.pf[g],shot=S.shots[g],led=$('led'+g),chip=$('gs'+g);
+    let txt='TAP TO FLUSH',col='#3a4448',blink=false,tc='#cfe0dc';
+    const flushing=B&&B.k==='flush'&&B.p===g;
+    if(shot){const t=now-shot.start;
+      if(t<FLOW){txt=`PRE-INFUSION ${(FLOW-t).toFixed(1)}`;col='#f0a95a';blink=true;tc='#f0a95a'}
+      else if(t<SHOT){txt=`EXTRACTING ${Math.floor(t)} s`;col='#f0a95a';tc='#f0a95a'}
+      else{txt='SHOT READY';col='#71dc9c';tc='#71dc9c'}}
+    else if(flushing){txt='FLUSHING';col='#8fd6f0';tc='#8fd6f0'}
+    else if(B&&B.k==='insert'&&B.p===g){txt='LOCKING IN…';tc='#f0a95a'}
+    else if(f.loc==='group'+g&&f.done.insert){txt='TAP TO BREW';col='#f0a95a';blink=true;tc='#f0a95a'}
+    else if(f.loc==='group'+g){txt=S.t0===null?'LIFT PF TO START':'LIFT PF'+g+' OUT'}
+    else if(f.done.flush){txt='FLUSHED ✓ TAP AGAIN';tc='#71dc9c'}
+    if(chip.textContent!==txt)chip.textContent=txt;
+    chip.setAttribute('fill',tc);led.setAttribute('fill',col);led.classList.toggle('blink',blink);
+    $('flush'+g).setAttribute('opacity',flushing?'.9':'0');
+    const flowing=shot&&now-shot.start>=FLOW&&now-shot.start<SHOT;
+    $('shot'+g).setAttribute('opacity',flowing?'1':'0');
+    if(flowing){const [px,py]=POS['group'+g],c=S.cups[g],yEnd=c?400:434;
+      $('shot'+g+'a').setAttribute('d',`M${px-12} ${py+41}L${px-(c?24:14)} ${yEnd}`);
+      $('shot'+g+'b').setAttribute('d',`M${px+12} ${py+41}L${px+(c?24:14)} ${yEnd}`);}
+  }
+  const anyShot=[1,2].some(g=>S.shots[g]&&now-S.shots[g].start<SHOT);
+  $('pumpNeedle').setAttribute('transform',`rotate(${anyShot?118:0})`);
+
+  // grinder
+  const gr=S.grinder,running=gr&&!gr.done;
+  $('grounds').setAttribute('opacity',running?'1':'0');
+  const lcd=running?`${Math.max(0,gr.end-el).toFixed(1)} s`:gr?'DOSED':'READY';
+  if($('grindLcd').textContent!==lcd)$('grindLcd').textContent=lcd;
+  $('grindLcd').setAttribute('fill',running?'#f0a95a':'#8ff0b5');
+
+  // knock box puck
+  const knocking=B&&B.k==='knock';
+  $('puck').setAttribute('opacity',knocking&&u>.35?String(1-clamp((u-.35)/.65)):'0');
+  if(knocking)$('puck').setAttribute('cy',String(552+clamp((u-.35)/.65)*34));
+
+  // scale
+  const onScale=[1,2].find(p=>S.pf[p].loc==='scale');let w='0.0 g',wl='#3a4448';
+  if(onScale&&!dragging('pf',onScale)){const f=S.pf[onScale];
+    if(B&&B.k==='weigh'&&B.p===onScale)w=(612.4+20*u).toFixed(1)+' g';
+    else w=(f.done.grind?632.4:612.4).toFixed(1)+' g';
+    if(f.done.weigh)wl='#71dc9c'}
+  if($('scaleLcd').textContent!==w)$('scaleLcd').textContent=w;
+  $('scaleLed').setAttribute('fill',wl);
+
+  // cups
+  const ticks=document.querySelectorAll('#ticks .tick');
+  for(const i of [1,2,3,4]){
+    const g=i<=2?1:2,c=cupEl[i];
+    const dc=drag&&drag.moved&&!drag.blocked&&drag.kind==='cup'?drag.id:null;
+    if(dc===i)setT(c,...drag.pos);
+    else if(dc&&(dc<=2?1:2)===g)setT(c,drag.pos[0]+(i<dc?-50:50),drag.pos[1]);
+    else setT(c,...(S.cups[g]?CUPAT[i]:CUPHOME[i]));
+    const shot=S.shots[g];let fill=0;
+    if(shot&&S.cups[g]!==null){const from=Math.max(shot.start+FLOW,S.cups[g]);fill=clamp((now-from)/(SHOT-FLOW))}
+    const cf=c.querySelector('.coffee');
+    cf.setAttribute('opacity',fill>0?'1':'0');cf.setAttribute('rx',(8+7*fill).toFixed(1));cf.setAttribute('ry',(2+1.8*fill).toFixed(1));
+    cf.setAttribute('fill',fill>.75?'#c68a4a':'#5b2f15');
+    ticks[i-1].setAttribute('opacity',fill>=1?'1':'0');
+  }
+
+  // zones
+  let showFor=null;
+  if(drag&&drag.moved&&!drag.blocked&&drag.kind==='pf')showFor=drag.id;
+  else if(!drag&&S.selected)showFor=S.selected;
+  const hot=drag&&drag.moved&&!drag.blocked&&drag.kind==='pf'?zoneAt(drag.pos,drag.ptr):null;
+  const hintOn=(coaching||performance.now()<hintUntil)&&!S.finished;
+  const adv=advice();
+  const hz=hintOn&&!drag?adv.z:null;
+  for(const z of Object.keys(ZONES)){
+    const ze=$('z-'+z),valid=showFor&&validZone(showFor,z);
+    ze.classList.toggle('show',!!valid);
+    ze.classList.toggle('hot',!!(valid&&hot===z));
+    ze.classList.toggle('hint',!showFor&&hz===z);
+  }
+  if(drag&&drag.kind==='cup'&&drag.moved){const g=drag.id<=2?1:2;$('z-group'+g).classList.add('show');if(inRect('group'+g,drag.ptr))$('z-group'+g).classList.add('hot')}
+  if(drag&&drag.kind==='tool'&&drag.moved&&drag.id!=='towel')$('z-mat').classList.add('show');
+  for(const k of ['distribute','tamp','towel'])TOOL[k].classList.toggle('hint',!showFor&&hz===k&&!B);
+  for(const i of [1,2,3,4])cupEl[i].classList.toggle('hint',!showFor&&hz===('cups'+(i<=2?1:2)));
+
+  // HUD
+  const te=$('time');te.textContent=fmt(el);
+  te.classList.toggle('over',el>=TARGET&&!S.finished);te.classList.toggle('stopped',S.finished);
+  $('trackFill').style.width=(clamp(el/TARGET)*100)+'%';$('track').classList.toggle('over',el>=TARGET);
+  for(const p of [1,2]){const f=S.pf[p],nextK=STEPS.find(k=>!f.done[k]);
+    for(const li of $('pips'+p).children){const k=li.dataset.k;
+      li.classList.toggle('done',!!f.done[k]);
+      li.classList.toggle('next',!S.finished&&k===nextK);
+      li.classList.toggle('miss',S.finished&&!f.done[k]);}
+    const done=STEPS.filter(k=>f.done[k]).length;
+    const nl=S.finished?(done===STEPS.length?'<b>All 9 steps</b>':`${STEPS.length-done} missed`):S.shots[p]?'<b>Brewing</b>':nextK?`Next <b>${LABEL[nextK]}</b> · ${done}/9`:'';
+    if($('next'+p).innerHTML!==nl)$('next'+p).innerHTML=nl;}
+  const hands=$('hands');
+  hands.textContent=B?`${DOING[B.k]} PF${B.p} · ${Math.max(0,B.end-el).toFixed(1)}s`:'Hands free';
+  hands.classList.toggle('busy',!!B);
+  const gc=$('grindChip');
+  gc.textContent=running?`Grinding PF${gr.p} · ${Math.max(0,gr.end-el).toFixed(1)}s`:gr?`PF${gr.p} dosed`:'Grinder idle';
+  gc.classList.toggle('grind',!!running);
+  const msg=S.finished?(S.result.advice):(coaching||performance.now()<hintUntil)?adv.t:'Coach off. Run your own flow; the hint button still works.';
+  if($('coach').innerHTML!==msg)$('coach').innerHTML=msg;
+  if(S.finished&&!$('result').hidden)updateCupsLine();
+}
+function showResult(){
+  const r=S.result;if(resultClosed)return;
+  $('result').hidden=false;
+  const v=$('rVerdict');v.textContent=r.valid?(r.newBest?'Valid run · new best':'Valid run'):r.missing.length?'Steps missed':'Late pump';v.classList.toggle('bad',!r.valid);
+  $('rTime').textContent=fmt(S.elapsed);
+  const d=TARGET-S.elapsed;$('rDelta').textContent=d>0?`${d.toFixed(1)} s under target`:`${(-d).toFixed(1)} s over target`;
+  $('rAdvice').textContent=r.advice;
+  $('rMissing').innerHTML=r.missing.slice(0,6).map(m=>`<li>${m}</li>`).join('')+(r.missing.length>6?`<li>and ${r.missing.length-6} more</li>`:'');
+  $('rBest').textContent=best!==null?`Best valid run: ${fmt(best)}`:'No valid run yet.';
+  updateCupsLine();
+}
+function updateCupsLine(){
+  const parts=[1,2].map(g=>!S.cups[g]?`Group ${g} cups: not placed yet`:S.cupsLate[g]?`Group ${g} cups: placed late`:`Group ${g} cups: on time ✓`);
+  const t=parts.join(' · ');if($('rCups').textContent!==t)$('rCups').textContent=t;
+}
+
+/* ---------- loop & controls ---------- */
+function tick(){
+  if(S.t0!==null){
+    S.now=performance.now()/1000-S.t0;
+    if(!S.finished)S.elapsed=S.now;
+    if(S.busy&&S.elapsed>=S.busy.end)complete();
+    if(S.grinder&&!S.grinder.done&&S.elapsed>=S.grinder.end){S.grinder.done=true;S.pf[S.grinder.p].contents='ground';toast(`PF${S.grinder.p} is dosed. Collect it from the grinder.`,'good')}
+  }
+  render();
+  requestAnimationFrame(tick);
+}
+$('startBtn').onclick=()=>{$('startCard').hidden=true;sizeHits()};
+$('resetBtn').onclick=()=>{init();$('startCard').hidden=false;$('startBtn').focus()};
+$('rAgain').onclick=()=>{init();sizeHits()};
+$('rClose').onclick=()=>{resultClosed=true;$('result').hidden=true};
+$('hintBtn').onclick=()=>{hintUntil=performance.now()+12000;const a=advice();toast(a.t.replace(/<[^>]+>/g,''),'good')};
+$('coachBtn').onclick=e=>{coaching=!coaching;e.currentTarget.textContent=coaching?'Coach on':'Coach off';e.currentTarget.setAttribute('aria-pressed',String(coaching))};
+$('fsBtn').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch(e){toast('Full screen is not available here.')}};
+document.addEventListener('fullscreenchange',()=>{$('fsBtn').textContent=document.fullscreenElement?'Exit full screen':'Full screen';setTimeout(sizeHits,100)});
+init();sizeHits();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
