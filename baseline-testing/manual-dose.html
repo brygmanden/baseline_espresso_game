@@ -83,7 +83,7 @@ main{max-width:none!important;padding:0!important;margin:0!important;display:blo
 @media (max-height:560px),(max-width:700px){
  .stage-top{flex-direction:column;align-items:flex-start;gap:6px}
  .stage-top .top{max-width:none}
- .stage-top .top h1{font-size:22px;line-height:1.1}
+ .stage-top .top h1{font-size:clamp(13px,calc((100vw - 130px) / 15),22px);line-height:1.1;white-space:nowrap}
  .stage-level{display:block;margin-top:3px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#bfe7d5;text-shadow:0 1px 6px #000c}
  .coach-dock{width:min(520px,100%)}
  .stage-bottom header>b{display:none!important}
