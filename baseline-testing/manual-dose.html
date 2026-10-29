@@ -85,7 +85,13 @@ main{max-width:none!important;padding:0!important;margin:0!important;display:blo
  .stage-level{display:block;margin-top:3px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#bfe7d5;text-shadow:0 1px 6px #000c}
  .coach-dock{width:min(520px,100%)}
  .stage-bottom header>b{display:none!important}
- .stage-bottom header{justify-content:flex-end}
+ .stage-bottom header{justify-content:flex-start;margin:0 0 10px!important}
+ .coach-dock{margin-top:8px}
+ .coach-dock .bar-coach{border:0}
+ #challengeDialog{border:0;box-shadow:none;margin:0;inset:0;width:100vw;max-width:100vw;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;padding:24px;background:#10191df0}
+ #challengeDialog[open]{display:flex;align-items:center;justify-content:center}
+ #challengeDialog::backdrop{background:transparent}
+ #challengeDialog form{width:min(390px,100%)}
  .stage-notes{flex-direction:column;align-items:stretch;gap:2px}
  .stage-notes .footer-note{display:block!important;order:1;width:100%;min-width:0;font-size:11px;line-height:1.35}
  .stage-notes .assessment-details{display:block!important;order:2;width:100%;max-width:none}
