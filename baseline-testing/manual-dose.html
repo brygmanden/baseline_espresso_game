@@ -38,6 +38,7 @@
 /* Saucers appear only after a cup leaves the warming tray. */
 [id^="cup"][transform$=" 495)"] .cup-saucer{display:none}
 .level-menu{position:relative;display:inline-flex;align-items:center;flex:0 0 auto}.level-menu-label{display:block;padding:10px 28px 10px 12px;border:1px solid #607275;border-radius:8px;background:#293b40;color:#f4eee3;font:inherit;white-space:nowrap}.level-menu-label::after{content:"▾";position:absolute;right:10px}.level-menu select#levelPicker{position:absolute;inset:0;width:100%;height:100%;min-width:0;opacity:0;cursor:pointer;font-size:16px}.level-menu:focus-within .level-menu-label{outline:3px solid #ffc095;outline-offset:2px}@media(orientation:landscape) and (max-height:600px){.level-menu-label{padding:6px 23px 6px 8px;font-size:12px}}#fullscreenButton[hidden]{display:none!important}#completionBanner,#message{display:none!important}.bar-advice{overflow-y:auto;max-height:100px}@media (min-width:751px){.scene.physical{height:calc(100vh - 215px);height:calc(100dvh - 215px);min-height:360px}.scene.physical>svg{height:100%}}
+@media (min-width:900px) and (min-height:560px){header,main{max-width:none}.top{display:none!important}.scene.physical{height:calc(100vh - 128px);height:calc(100dvh - 128px);min-height:420px}}
 .physical text{font-size:24px}
 .hit{fill:transparent;stroke:none}
 .glow{opacity:0;pointer-events:none;transition:opacity .15s}.glow-over{mix-blend-mode:screen}
@@ -143,4 +144,12 @@ for(const mode of ['double','topup'])bindTap($('doseButton-'+mode),()=>grinderDo
 function tareScale(){if(finished)return;const action=actionFor(1);if(action?.k==='weigh'){pendingTare=true;say('Taring as soon as the scale settles…');return;}if(action){say('Wait for the current action to finish, then tap TARE.');return;}if(!pfs[1].place.startsWith('Scale'))return say('Put the empty portafilter on the scale first.');if(dose>0||!pfs[1].knocked||!pfs[1].done.dry){const message='Empty and towel-dry the basket before taring.';say(message);$('completionBanner').textContent=message;return;}tared=true;pfs[1].done.tare=true;pfs[1].place='Scale · 0.00 g';say('✓ Portafilter tared: 650 g zeroed. Now grind the dose.');$('completionBanner').textContent='✓ Empty portafilter tared · 0.00 g';render();}
 bindTap($('tareButton'),tareScale);
 $('reset').onclick=()=>{init();$('challengeDialog').showModal()};init();$('challengeDialog').showModal();requestAnimationFrame(tick);
+
+/* Stage framing: phones keep the tight crop; desktops widen and heighten the view to fill the window, showing more of the bar around the equipment. */
+(function(){const svg=document.getElementById('barSvg'),scene=svg.parentElement,M=[245,410,1460,720],desk=matchMedia('(min-width:900px) and (min-height:560px)');
+function frame(){const r=scene.getBoundingClientRect();if(!desk.matches||!r.width||!r.height){svg.setAttribute('viewBox',M.join(' '));return}
+const a=r.width/r.height,cx=M[0]+M[2]/2;let w=M[2]+320,h=M[3]+70,y=M[1]-40;
+if(w/h<a)w=h*a;else{const nh=w/a;y-=(nh-h)*.3;h=nh}
+y=Math.max(0,Math.min(y,1513-h));svg.setAttribute('viewBox',`${(cx-w/2).toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`)}
+addEventListener('resize',frame);desk.addEventListener?.('change',frame);frame();})();
 </script></body></html>
