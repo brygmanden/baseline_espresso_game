@@ -238,7 +238,7 @@ const C=desk.matches?[M[0]-160,M[1]-30,M[2]+320,M[3]+50]:[M[0]-15,M[1]-10,M[2]+3
 const mob=phone.matches,ch=mob?coach.offsetHeight+18:0,head=topUi.offsetHeight+4;
 const ti=head+ch,bi=botUi.offsetHeight+4,ih=Math.max(80,r.height-ti-bi);
 const s=Math.min(r.width/C[2],ih/C[3]),w=r.width/s,h=r.height/s,x=C[0]+C[2]/2-w/2;let y=C[1]-ti/s-(ih/s-C[3]);
-if(mob){const room=(C[1]-y)*s-head-coach.offsetHeight-28;y+=Math.max(0,Math.min(r.height*.08,room))/s}
+if(mob){const room=(C[1]-y)*s-head-coach.offsetHeight-28;y+=Math.max(0,Math.min(r.height*.04,room))/s}
 svg.setAttribute('viewBox',`${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
 if(mob){const free=(C[1]-y)*s-head;coach.style.top=(head+Math.max(0,(free-coach.offsetHeight)/2)).toFixed(0)+'px'}else coach.style.top=''}
 if(window.ResizeObserver){const ro=new ResizeObserver(frame);[scene,topUi,botUi,coach].forEach(e=>ro.observe(e))}phone.addEventListener?.('change',frame);
