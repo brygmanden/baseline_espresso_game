@@ -270,7 +270,7 @@ let lastKey='',meas=null,settled=false;const t0=performance.now();addEventListen
 if(key!==lastKey||!meas||(!settled&&performance.now()-t0<2500)){meas={head:topUi.offsetHeight+4,coachH:coach.offsetHeight,bi:botUi.offsetHeight+4};lastKey=key;window.__barMeas=meas;if(window.__barSpread)setTimeout(window.__barSpread,0)}else if(force!==true)return;
 const C=desk.matches?[M[0]-160+LX,M[1]-30,M[2]+320+RX-LX+(window.__plantX||0),M[3]+50]:[M[0]-15,M[1]-10,M[2]+30,M[3]+15];
 const mob=phone.matches,ch=mob?meas.coachH+18:0,head=meas.head;
-const ti=desk.matches?44:head+ch,bi=meas.bi,ih=Math.max(80,r.height-ti-bi);
+const ti=head+ch,bi=meas.bi,ih=Math.max(80,r.height-ti-bi);
 const s=Math.min(r.width/C[2],ih/C[3]),w=r.width/s,h=r.height/s,x=C[0]+C[2]/2-w/2;let y=C[1]-ti/s-(ih/s-C[3]);
 if(mob){const room=(C[1]-y)*s-head-meas.coachH-28;y+=Math.max(0,Math.min(r.height*.04,room))/s}
 else if(desk.matches){y-=Math.min(80,Math.max(0,(r.width/r.height-1.4)*160))}
@@ -294,7 +294,7 @@ new MutationObserver(update).observe(src,{childList:true,characterData:true,subt
 (function(){const desk=matchMedia('(min-width:900px) and (min-height:560px)'),Lk=['clean','grinder','distribute','tamp'],Rk=['group1','group2','scale'];let pOn=false,plOn=false;
 for(const n of document.querySelectorAll('#barSvg [data-cl]'))n.dataset.base=n.getAttribute('transform')||'';
 function target(){if(!desk.matches)return {a:0,p:false,pl:false,g:0};const m=window.__barMeas||{head:174,bi:112};
-const ih=Math.max(80,innerHeight-44-(m.bi-4)-8),extra=innerWidth*770/ih-(1190+320);
+const ih=Math.max(80,innerHeight-Math.max(m.head-4,170)-(m.bi-4)-8),extra=innerWidth*770/ih-(1190+320);
 const a=Math.round(Math.min(260,Math.max(60,extra*.45))),pl=a>=260&&extra-2*a>=0;return {a,p:a>=130,pl,g:pl?122:0}}
 function apply(){const {a,p,pl,g}=target(),ra=p?Math.max(130,a-60):a,dL=-a-g-LX,dR=ra-g-RX;if(!dL&&!dR&&p===pOn&&pl===plOn)return false;plOn=pl;window.__plantX=pl?244:0;document.getElementById("barPlant").classList.toggle("on",pl);
 for(const k of Lk)locations[k][0]+=dL;for(const k of Rk)locations[k][0]+=dR;cupHomes[1][0]+=dR;cupTargets[1][0]+=dR;toolSpecs.distribute.home[0]+=dL;toolSpecs.tamp.home[0]+=dL;
