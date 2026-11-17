@@ -289,7 +289,7 @@ new MutationObserver(update).observe(src,{childList:true,characterData:true,subt
 /* Desktop spread: prep station left, machine right, wider apart the more room the stage has; milk pitchers join beside the machine once there is space. Recomputed on resize before an attempt starts, otherwise at the next reset. */
 (function(){const desk=matchMedia('(min-width:900px) and (min-height:560px)'),Lk=['clean','grinder','distribute','tamp'],Rk=['group1','group2','scale'];let pOn=false,plOn=false;
 for(const n of document.querySelectorAll('#barSvg [data-cl]'))n.dataset.base=n.getAttribute('transform')||'';
-function target(){if(!desk.matches)return {a:0,p:false};const t=document.querySelector('.stage-top'),b=document.querySelector('.stage-bottom');
+function target(){if(!desk.matches)return {a:0,p:false,pl:false,g:0};const t=document.querySelector('.stage-top'),b=document.querySelector('.stage-bottom');
 const ih=Math.max(80,innerHeight-Math.max(t?t.offsetHeight:0,170)-(b?b.offsetHeight:0)-8),extra=innerWidth*770/ih-(1190+320);
 const a=Math.round(Math.min(260,Math.max(60,extra*.45))),pl=extra-2*a>=244+60;return {a,p:a>=130,pl,g:pl?122:0}}
 function apply(){const {a,p,pl,g}=target(),dL=-a-g-LX,dR=a-g-RX;if(!dL&&!dR&&p===pOn&&pl===plOn)return false;plOn=pl;window.__plantX=pl?244:0;document.getElementById("barPlant").classList.toggle("on",pl);
