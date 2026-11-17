@@ -258,8 +258,8 @@ $('reset').onclick=()=>{init();$('challengeDialog').showModal()};init();$('chall
 
 /* Stage framing: fit the equipment between the top and bottom overlays, resting just above the bottom bar; phones use the tight crop, larger screens add margin. */
 (function(){const svg=document.getElementById('barSvg'),scene=svg.parentElement,topUi=scene.querySelector('.stage-top'),botUi=scene.querySelector('.stage-bottom'),M=[290,410,1190,720],desk=matchMedia('(min-width:900px) and (min-height:560px)'),phone=matchMedia('(max-height:560px),(max-width:700px)'),coach=topUi.querySelector('.coach-dock');
-let lastKey='',meas=null;const t0=performance.now();function frame(force){const r=scene.getBoundingClientRect();if(!r.width||!r.height)return;const key=Math.round(r.width)+'x'+Math.round(r.height);
-if(key!==lastKey||!meas||performance.now()-t0<2500){meas={head:topUi.offsetHeight+4,coachH:coach.offsetHeight,bi:botUi.offsetHeight+4};lastKey=key}else if(force!==true)return;
+let lastKey='',meas=null,settled=false;const t0=performance.now();addEventListener('pointerdown',()=>{settled=true},{capture:true,once:true});addEventListener('keydown',()=>{settled=true},{capture:true,once:true});function frame(force){const r=scene.getBoundingClientRect();if(!r.width||!r.height)return;const key=Math.round(r.width)+'x'+Math.round(r.height);
+if(key!==lastKey||!meas||(!settled&&performance.now()-t0<2500)){meas={head:topUi.offsetHeight+4,coachH:coach.offsetHeight,bi:botUi.offsetHeight+4};lastKey=key}else if(force!==true)return;
 const C=desk.matches?[M[0]-160+LX,M[1]-30,M[2]+320+RX-LX+(window.__plantX||0),M[3]+50]:[M[0]-15,M[1]-10,M[2]+30,M[3]+15];
 const mob=phone.matches,ch=mob?meas.coachH+18:0,head=meas.head;
 const ti=head+ch,bi=meas.bi,ih=Math.max(80,r.height-ti-bi);
