@@ -296,9 +296,9 @@ for(const n of document.querySelectorAll('#barSvg [data-cl]'))n.dataset.base=n.g
 function target(){if(!desk.matches)return {a:0,p:false,pl:false,g:0};const m=window.__barMeas||{head:174,bi:112};
 const ih=Math.max(80,innerHeight-Math.max(m.head-4,170)-(m.bi-4)-8),extra=innerWidth*770/ih-(1190+320);
 const a=Math.round(Math.min(260,Math.max(60,extra*.45))),pl=extra-2*a>=244+60;return {a,p:a>=130,pl,g:pl?122:0}}
-function apply(){const {a,p,pl,g}=target(),dL=-a-g-LX,dR=a-g-RX;if(!dL&&!dR&&p===pOn&&pl===plOn)return false;plOn=pl;window.__plantX=pl?244:0;document.getElementById("barPlant").classList.toggle("on",pl);
+function apply(){const {a,p,pl,g}=target(),ra=p?Math.max(130,a-60):a,dL=-a-g-LX,dR=ra-g-RX;if(!dL&&!dR&&p===pOn&&pl===plOn)return false;plOn=pl;window.__plantX=pl?244:0;document.getElementById("barPlant").classList.toggle("on",pl);
 for(const k of Lk)locations[k][0]+=dL;for(const k of Rk)locations[k][0]+=dR;cupHomes[1][0]+=dR;cupTargets[1][0]+=dR;toolSpecs.distribute.home[0]+=dL;toolSpecs.tamp.home[0]+=dL;
-LX=-a-g;RX=a-g;pOn=p;
+LX=-a-g;RX=ra-g;pOn=p;
 for(const n of document.querySelectorAll('#barSvg [data-cl]'))n.setAttribute('transform',`translate(${n.dataset.cl==='L'?LX:RX} 0) `+n.dataset.base);
 document.getElementById('milkPitchers').classList.toggle('on',p);
 for(const k of ['distribute','tamp'])$(toolSpecs[k].id).setAttribute('transform',`translate(${toolSpecs[k].home[0]} ${toolSpecs[k].home[1]})`);return true}
