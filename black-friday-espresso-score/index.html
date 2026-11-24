@@ -198,7 +198,7 @@ html,body,#barSvg,#barSvg *{-webkit-tap-highlight-color:transparent}
 #coachSlot .bar-advice{margin:2px 0 0!important;max-width:720px;min-height:0;max-height:none!important;overflow:visible;font-size:16px!important;line-height:1.35!important;font-weight:600;color:#f4eee3;text-align:left!important;text-shadow:0 1px 6px #000,0 0 12px #000c}
 .flip-clock{display:none!important}
 .coach-dock .digital-time.flip-src{position:static!important;width:auto!important;height:auto!important;overflow:visible!important;clip:auto!important}
-.coach-dock .digital-time{display:block;background:transparent!important;font-family:"Digital-7","Share Tech Mono","Courier New",monospace!important;font-weight:400!important;font-size:clamp(56px,7.5vh,76px)!important;line-height:1!important;letter-spacing:.04em;color:#ffffff!important;text-align:center;text-shadow:0 0 18px rgba(255,255,255,.35),0 3px 10px rgba(0,0,0,.45)}
+.coach-dock .digital-time{display:block;background:transparent!important;font-family:"Digital-7","Share Tech Mono","Courier New",monospace!important;font-weight:400!important;font-size:clamp(56px,7.5vh,76px)!important;line-height:1!important;letter-spacing:.04em;color:#10202a!important;text-align:center;text-shadow:0 1px 0 rgba(255,255,255,.18)}
 .stage-top .coach-dock{position:absolute!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:auto!important;margin:0!important}
 .coach-dock .bar-coach{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
 @media (min-width:900px) and (min-height:561px){
@@ -322,7 +322,7 @@ const s=Math.min(r.width/C[2],ih/C[3]),w=r.width/s,h=r.height/s,x=C[0]+C[2]/2-w/
 if(mob){const room=(C[1]-y)*s-head-meas.coachH-28;y+=Math.max(0,Math.min(r.height*.04,room))/s}
 else if(desk.matches){y-=Math.min(80,Math.max(0,(r.width/r.height-1.4)*160))}
 svg.setAttribute('viewBox',`${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
-if(mob){const free=(C[1]-y)*s-head;coach.style.top=(head+Math.max(0,(free-coach.offsetHeight)/2)).toFixed(0)+'px'}else{const tt=topUi.querySelector('.top').getBoundingClientRect(),m=svg.getScreenCTM(),counter=892*m.d+m.f;coach.style.left='';coach.style.width='';coach.style.top=Math.max(tt.bottom+8,(tt.bottom+counter)/2-coach.offsetHeight/2).toFixed(0)+'px'}}
+if(mob){const free=(C[1]-y)*s-head;coach.style.top=(head+Math.max(0,(free-coach.offsetHeight)/2-free*.1)).toFixed(0)+'px'}else{const tt=topUi.querySelector('.top').getBoundingClientRect(),m=svg.getScreenCTM(),counter=892*m.d+m.f;coach.style.left='';coach.style.width='';coach.style.top=Math.max(tt.bottom+8,(tt.bottom+counter)/2-coach.offsetHeight/2-(counter-tt.bottom)*.12).toFixed(0)+'px'}}
 if(window.ResizeObserver){const ro=new ResizeObserver(frame);[scene,topUi,botUi,coach].forEach(e=>ro.observe(e))}phone.addEventListener?.('change',frame);
 addEventListener('resize',()=>frame());window.__frameBar=()=>frame(true);frame();})();
 
